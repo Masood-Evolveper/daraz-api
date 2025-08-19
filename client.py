@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 import json
+from models import DarazProductCreate
 
 _:bool = load_dotenv()
 
@@ -35,6 +36,36 @@ def get_category_attributes(access_token: str, category_id: str):
     request.add_api_param("primary_category_id", category_id)
     response = lazop_client.execute(request, access_token)
     return response.body
+
+def get_all_categories(access_token: str):
+    request = LazopRequest("/category/tree/get", "GET")
+    response = lazop_client.execute(request, access_token)
+    return response.body
+
+def get_category_children(access_token: str, category_id: int):
+    all_categories_request = LazopRequest("/category/tree/get", "GET")
+    response = lazop_client.execute(all_categories_request, access_token)
+
+    import json
+    all_categories_tree = response.body
+    if isinstance(all_categories_tree, str):
+        all_categories_tree = json.loads(all_categories_tree)
+
+    categories = all_categories_tree.get("data", [])
+
+    def find_category(categories, category_id):
+        for category in categories:
+            # FIX: Daraz uses "category_id", not "id"
+            if int(category["category_id"]) == category_id:
+                return category.get("children", [])
+            children = category.get("children", [])
+            if children:
+                found = find_category(children, category_id)
+                if found is not None:
+                    return found
+        return None
+
+    return find_category(categories, category_id) or []
 
 def migrate_image(access_token: str):
   request = LazopRequest('/image/migrate')
@@ -86,28 +117,31 @@ def get_migrated_images(access_token: str, batch_id: str):
         return response.body
     return json.loads(response.body)
   
-def create_new_product(access_token: str):
+    #  <Image>https://static-01.daraz.pk/p/97545b9b42e3a4781ff7c98c68002352.png</Image>
+    #           <Image>https://static-01.daraz.pk/p/97545b9b42e3a4781ff7c98c68002352.png</Image>
+    # <brand>Remark</brand>
+              
+def create_new_product(access_token: str, product: DarazProductCreate):
     create_product_request = LazopRequest('/product/create')
-    xml_payload = """<?xml version="1.0" encoding="UTF-8"?>
+    xml_payload = f"""<?xml version="1.0" encoding="UTF-8"?>
         <Request>
           <Product>
-            <PrimaryCategory>6614</PrimaryCategory>
+            <PrimaryCategory>{product.PrimaryCategory}</PrimaryCategory>
             <SPUId/>
             <AssociatedSku/>
             <Images>
-              <Image>https://static-01.daraz.pk/p/97545b9b42e3a4781ff7c98c68002352.png</Image>
-              <Image>https://static-01.daraz.pk/p/97545b9b42e3a4781ff7c98c68002352.png</Image>
+              {''.join([f'<Image>{img}</Image>' for img in product.Images])}
             </Images>
             <Attributes>
-              <name>API Product Test Sample</name>
-              <short_description>This is a nice product</short_description>
-              <short_description_en>This is a nice product short description_en</short_description_en>
-              <description>This is a test product description</description>
-              <description_en>This is a test product description_en</description_en>
-              <brand>Remark</brand>
+              <name>{product.name}</name>
+              <short_description>{product.short_description}</short_description>
+              <short_description_en>{product.short_description}</short_description_en>
+              <description>{product.description}</description>
+              <description_en>{product.description}</description_en>
+              <brand>{product.brand}</brand>
               <model>asdf</model>
               <kid_years>Kids (6-10yrs)</kid_years>
-              <name_en>My Test Product EN</name_en>
+              <name_en>{product.name}</name_en>
               <occasion>Casual</occasion>
               <age_range>Standard</age_range>
               <warranty_type>No Warranty</warranty_type>

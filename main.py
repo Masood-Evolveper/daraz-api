@@ -2,8 +2,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 from fastapi import FastAPI, Request
 import settings
-from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images, migrate_image
+from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images,migrate_image, get_all_categories, get_category_children
 from fastapi.responses import RedirectResponse, JSONResponse
+from models import DarazProductCreate
 import os
 from dotenv import load_dotenv
 
@@ -41,6 +42,14 @@ async def access_token(code: str):
 async def all_products(access_token: str):
     return get_all_products(access_token)
 
+@app.get('/get_all_categories')
+async def all_categories(access_token: str):
+    return get_all_categories(access_token)
+
+@app.get('/get_category_children')
+async def category_children(access_token: str, categoty_id: int):
+    return get_category_children(access_token, categoty_id)
+
 @app.get('/get_category_attributes')
 async def category_attributes(access_token: str, category_id: str):
     return get_category_attributes(access_token, category_id)
@@ -58,8 +67,8 @@ async def migrate_images_result(access_token: str, batch_id: str):
     return get_migrated_images(access_token, batch_id)
 
 @app.post('/create_new_product')
-async def new_product(access_token: str):
-    return create_new_product(access_token)
+async def new_product(product: DarazProductCreate, access_token: str):
+    return create_new_product(access_token, product)
 
 # @app.get("/callback")
 # async def callback(request: Request):
@@ -75,3 +84,8 @@ async def new_product(access_token: str):
 #     response = lazop_client.execute(lazop_request)
 
 #     return JSONResponse(response.body)
+
+
+
+
+# uvicorn main:app --host 0.0.0.0 --port 8001 --reload
