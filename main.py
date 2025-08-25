@@ -1,10 +1,11 @@
 from fastapi.middleware.cors import CORSMiddleware
 import requests
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Header, UploadFile, File, Body
 import settings
-from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images,migrate_image, get_all_categories, get_category_children
+from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images,migrate_image, get_all_categories, get_category_children, get_category_by_id
 from fastapi.responses import RedirectResponse, JSONResponse
 from models import DarazProductCreate
+from typing import Optional, Any
 import os
 from dotenv import load_dotenv
 
@@ -39,35 +40,39 @@ async def access_token(code: str):
     return get_access_token(code)
 
 @app.get('/get_all_products')
-async def all_products(access_token: str):
+async def all_products(access_token: Optional[str] = Header(None, alias="Authorization")):
     return get_all_products(access_token)
 
 @app.get('/get_all_categories')
-async def all_categories(access_token: str):
-    return get_all_categories(access_token)
+async def all_categories():
+    return get_all_categories()
+
+@app.get('/get_category_by_id')
+async def category_by_id(category_id: int):
+    return get_category_by_id(category_id)
 
 @app.get('/get_category_children')
-async def category_children(access_token: str, categoty_id: int):
-    return get_category_children(access_token, categoty_id)
+async def category_children(categoty_id: int):
+    return get_category_children(categoty_id)
 
 @app.get('/get_category_attributes')
-async def category_attributes(access_token: str, category_id: str):
-    return get_category_attributes(access_token, category_id)
+async def category_attributes(category_id: str):
+    return get_category_attributes(category_id)
 
 @app.post('/migrate_image')
-async def migrate_single_image(access_token: str):
-    return migrate_image(access_token)
+async def migrate_single_image(image_url: str = Body(..., embed=True), access_token: Optional[str] = Header(None, alias="Authorization")):
+    return migrate_image(access_token, image_url)
 
 @app.post('/migrate_images')
-async def migrate_all_images(access_token: str):
-    return migrate_images(access_token)
+async def migrate_all_images(images_urls: list[str], access_token: Optional[str] = Header(None, alias="Authorization")):
+    return migrate_images(access_token, images_urls)
 
 @app.get("/migrate_images/result")
-async def migrate_images_result(access_token: str, batch_id: str):
+async def migrate_images_result(batch_id: str, access_token: Optional[str] = Header(None, alias="Authorization")):
     return get_migrated_images(access_token, batch_id)
 
 @app.post('/create_new_product')
-async def new_product(product: DarazProductCreate, access_token: str):
+async def new_product(product:dict = Body(...), access_token: Optional[str] = Header(None, alias="Authorization")):
     return create_new_product(access_token, product)
 
 # @app.get("/callback")

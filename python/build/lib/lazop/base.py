@@ -79,10 +79,17 @@ def sign(secret,api, parameters):
 def mixStr(pstr):
     if(isinstance(pstr, str)):
         return pstr
-    elif(isinstance(pstr, unicode)):
-        return pstr.encode('utf-8')
-    else:
-        return str(pstr)
+    # try:
+    #     unicode  # noqa: F821
+    #     if isinstance(pstr, unicode):  # type: ignore
+    #         return str(pstr)
+    # except NameError:
+    #     pass
+    return str(pstr)
+    # elif(isinstance(pstr, unicode)):
+    #     return pstr.encode('utf-8')
+    # else:
+    #     return str(pstr)
 
 def logApiError(appkey, sdkVersion, requestUrl, code, message):
     localIp = socket.gethostbyname(socket.gethostname())
