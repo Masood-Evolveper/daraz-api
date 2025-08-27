@@ -29,9 +29,28 @@ def get_all_products(access_token: str):
     all_products_response = lazop_client.execute(all_products_request, access_token)
     print("Products: ", all_products_response.body)
     return all_products_response.body
-
             #   <delivery_option_sof>Yes</delivery_option_sof>
 
+def get_product_reviews(product_id: str, access_token: str):
+    product_reviews_request = LazopRequest("/review/seller/history/list",'GET')
+    product_reviews_request.add_api_param('item_id', product_id)
+    product_reviews_request.add_api_param('start_time', '1755630000000')
+    product_reviews_request.add_api_param('end_time', '1756190065705')
+    product_reviews_request.add_api_param('current', '1')
+    product_reviews_response = lazop_client.execute(product_reviews_request, access_token)
+    data = product_reviews_response.body["data"]
+    print("Data: ", data)
+    id_list = data.get("id_list", None)
+    if id_list is None:
+      print("No reviews found")
+      return []
+    print("ID LIST: ", id_list)
+    reviews_request = LazopRequest('/review/seller/list/v2','GET')
+    reviews_request.add_api_param('id_list', id_list)
+    reviews_response = lazop_client.execute(reviews_request, access_token)
+    print(reviews_response)
+    return reviews_response.body
+  
 def get_category_attributes(category_id: str):
     request = LazopRequest("/category/attributes/get", "GET")
     request.add_api_param("primary_category_id", category_id)
@@ -228,3 +247,124 @@ def create_new_product(access_token: str, product: Any):
 #     create_product_request.add_api_param('payload', xml_payload)
 #     response = lazop_client.execute(create_product_request, access_token)
 #     return JSONResponse({"type": response.type, "body": response.body})
+
+
+def get_all_orders(access_token: str):
+    all_orders_request = LazopRequest("/orders/get",'GET')
+    all_orders_request.add_api_param("offset", "0")
+    all_orders_request.add_api_param("limit", "10")
+    all_orders_request.add_api_param("sort_by", "updated_at")
+    all_orders_request.add_api_param('sort_direction', 'DESC')
+    all_orders_request.add_api_param('created_after', '2017-02-10T09:00:00+08:00')
+    all_orders_response = lazop_client.execute(all_orders_request, access_token)
+    print("Orders: ", all_orders_response.body)
+    return all_orders_response.body
+
+# def get_order_logistic_details(order_id: str, access_token: str):
+#   order_logistic_request = LazopRequest('/order/logistic/get')
+#   order_logistic_request.add_api_param('order_id', order_id)
+#   order_logistic_request.add_api_param('package_id_list', '[]')
+#   order_logistic_request.add_api_param('locale', 'en')
+#   order_logistic_response = lazop_client.execute(order_logistic_request, access_token)
+#   print("Order Logistic Details: ", order_logistic_response.body)
+#   order_tracking_number = order_logistic_response.body["data"]["module"][0]["package_detail_info_list"][0].get("tracking_number", None)
+#   if(order_tracking_number is None):
+#     print("No tracking number found")
+#     return {}
+#   order_package_history_request = LazopRequest("/logistics/epis/packages/history",'GET')
+#   order_package_history_request.add_api_param('includeTimeline', 'true')
+#   order_package_history_request.add_api_param('trackingNumber', order_tracking_number)
+#   order_package_history_response = lazop_client.execute(order_package_history_request)
+#   print("Package history details: ", order_package_history_response.body)
+#   return order_package_history_response.body
+
+def get_order_logistic_details(order_id: str, access_token: str):
+    # Step 1: Fetch logistic details
+    order_logistic_request = LazopRequest('/order/logistic/get')
+    order_logistic_request.add_api_param('order_id', order_id)
+    order_logistic_request.add_api_param('package_id_list', '[]')
+    order_logistic_request.add_api_param('locale', 'en')
+
+    order_logistic_response = lazop_client.execute(order_logistic_request, access_token)
+    print("Order Logistic Details: ", order_logistic_response.body)
+
+    try:
+        # body = json.loads(order_logistic_response.body)
+        modules = order_logistic_response.body.get("data", {}).get("module", [])
+        print("Modules: ", modules)
+        if not modules:
+            print("No modules found in logistic details")
+            return {}
+
+        package_list = modules[0].get("packageDetailInfoList", [])
+        if not package_list:
+            print("No package details found")
+            return {}
+
+        order_tracking_number = package_list[0].get("trackingNumber")
+        print("Tracking Number: ", order_tracking_number)
+        if not order_tracking_number:
+            print("No tracking number found")
+            return {}
+
+    except Exception as e:
+        print("Error parsing logistic response:", e)
+        return {}
+
+    # Step 2: Fetch package history
+    order_package_history_request = LazopRequest("/logistics/epis/packages/history", 'GET')
+    order_package_history_request.add_api_param('includeTimeline', 'true')
+    order_package_history_request.add_api_param('trackingNumber', order_tracking_number)
+
+    order_package_history_response = lazop_client.execute(order_package_history_request, access_token)
+    print("Package history details: ", order_package_history_response.body)
+
+    # Return parsed JSON instead of raw string (optional)
+    try:
+        return json.loads(order_package_history_response.body)
+    except:
+        return {"raw": order_package_history_response.body}
+
+def trace_order_by_id(order_id: str, access_token: str):
+    trace_order_request = LazopRequest("/logistic/order/trace",'GET')
+    # trace_order_request = LazopRequest("/logistics/epis/packages/history",'GET')
+    trace_order_request.add_api_param("order_id", order_id)
+    trace_order_request.add_api_param('locale', 'en')
+    trace_order_request.add_api_param('ofcPackageIdList', '[]')
+    track_order_response = lazop_client.execute(trace_order_request, access_token)
+    print("Track Order Data: ", track_order_response.body)
+    return track_order_response.body
+
+def get_reverse_orders(access_token: str):
+    reverse_orders_request = LazopRequest("/reverse/getreverseordersforseller",'GET')
+    reverse_orders_request.add_api_param('page_no', '1')
+    reverse_orders_request.add_api_param('page_size', '10')
+    reverse_orders_response = lazop_client.execute(reverse_orders_request, access_token)
+    print("Reverse orders: ", reverse_orders_response.body)
+    return reverse_orders_response.body["result"]["items"]
+
+def get_reverse_order_info(reverse_order_id: str, access_token: str):
+    reverse_order_request = LazopRequest("/order/reverse/return/detail/list",'GET')
+    reverse_order_request.add_api_param('reverse_order_id', 'reverse order id')
+    reverse_order_response = lazop_client.execute(reverse_order_request, access_token)
+    print("Reverse orders: ", reverse_order_response.body)
+    return reverse_order_response.body
+
+def get_all_reverse_orders_info(access_token: str):
+  reverse_orders = get_reverse_orders(access_token)
+  print(reverse_orders)
+  reverse_orders_info = []
+  for reverse_order in reverse_orders:
+    print(reverse_order)
+    info = get_reverse_order_info(reverse_order['reverse_order_id'], access_token)
+    print(info)
+    reverse_orders_info.append(info)
+  return reverse_orders_info
+
+def payout_statement(access_token: str):
+  request = LazopRequest('/finance/payout/status/get','GET')
+  request.add_api_param('created_after', '2018-01-01')
+  response = lazop_client.execute(request, access_token)
+  print(response.type)
+  print(response.body)
+  return response.body
