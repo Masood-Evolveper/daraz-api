@@ -160,8 +160,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-multipart==0.0.20
 pyvis==0.3.2
-pywin32==311
-pywin32-ctypes==0.2.3
 PyYAML==6.0.2
 RapidFuzz==3.13.0
 realtime==2.6.0
