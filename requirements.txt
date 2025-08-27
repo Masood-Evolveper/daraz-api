@@ -48,7 +48,6 @@ future==1.0.0
 google-auth==2.40.3
 googleapis-common-protos==1.70.0
 gotrue==2.12.3
--e git+https://github.com/Masood-Evolveper/grievance-ai-v2.git@f96bb9e77beee24a7855df0cccc215f3a4c677b9#egg=grievance_ai_clone
 griffe==1.7.3
 grpcio==1.74.0
 gunicorn==23.0.0
