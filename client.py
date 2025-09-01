@@ -31,6 +31,40 @@ def get_all_products(access_token: str):
     return all_products_response.body
             #   <delivery_option_sof>Yes</delivery_option_sof>
 
+def get_all_products_reviews(access_token: str):
+    # Step 1: Get all products
+    all_products = get_all_products(access_token)
+    print("All Products: ", all_products)
+
+    # Daraz returns JSON-like dict under all_products['data']['products']
+    # Depending on SDK, you might need to parse JSON
+    if isinstance(all_products, str):
+        import json
+        all_products = json.loads(all_products)
+
+    product_list = all_products.get("data", {}).get("products", [])
+
+    all_reviews = []
+
+    # Step 2: Loop through each product
+    for product in product_list:
+        item_id = product.get("item_id")  # Daraz expects item_id (not product_id)
+        if not item_id:
+            continue
+
+        # Step 3: Get reviews for this product
+        reviews = get_product_reviews(item_id, access_token)
+
+        # Store in dictionary
+        # all_reviews[item_id] = reviews
+        product_with_reviews = {
+            "product": product,   # full product data
+            "reviews": reviews    # raw reviews response
+        }
+        all_reviews.append(product_with_reviews)
+
+    return all_reviews
+
 def get_product_reviews(product_id: str, access_token: str):
     product_reviews_request = LazopRequest("/review/seller/history/list",'GET')
     product_reviews_request.add_api_param('item_id', product_id)
@@ -38,6 +72,8 @@ def get_product_reviews(product_id: str, access_token: str):
     product_reviews_request.add_api_param('end_time', '1756190065705')
     product_reviews_request.add_api_param('current', '1')
     product_reviews_response = lazop_client.execute(product_reviews_request, access_token)
+    # print("Product Reviews: ", product_reviews_response)
+    print(product_reviews_response.body)
     data = product_reviews_response.body["data"]
     print("Data: ", data)
     id_list = data.get("id_list", None)
@@ -62,18 +98,20 @@ def get_all_categories():
     request = LazopRequest("/category/tree/get", "GET")
     response = lazop_client.execute(request)
     return response.body["data"]
-  
+
+def find_category(categories, category_id: int):
+    for category in categories:
+        if int(category["category_id"]) == category_id:
+            return category
+        if "children" in category and category["children"]:
+            result = find_category(category["children"], category_id)
+            if result:
+                return result
+    return None
+
 def get_category_by_id(category_id: int):
-  all_categories = get_all_categories()
-  for category in all_categories:
-    print(category["category_id"], category_id, type(category["category_id"]), type(category_id))
-    if int(category["category_id"]) == category_id:
-      print(category)
-      return category
-    for child in category.get("children", []):
-      if int(child["category_id"]) == category_id:
-        print(child)
-        return child
+    all_categories = get_all_categories()
+    return find_category(all_categories, category_id)
       
 def get_category_children(category_id: int):
     all_categories_request = LazopRequest("/category/tree/get", "GET")
@@ -258,8 +296,45 @@ def get_all_orders(access_token: str):
     all_orders_request.add_api_param('created_after', '2017-02-10T09:00:00+08:00')
     all_orders_response = lazop_client.execute(all_orders_request, access_token)
     print("Orders: ", all_orders_response.body)
-    return all_orders_response.body
+    return all_orders_response.body["data"]["orders"]
 
+def get_order_detail(order_id: str, access_token: str):
+    order_detail_request = LazopRequest('/order/items/get','GET')
+    order_detail_request.add_api_param('order_id', order_id)
+    order_detail_response = lazop_client.execute(order_detail_request, access_token)
+    print("Order detail: ", order_detail_response.body)
+    return order_detail_response.body
+  
+def get_orders_details(order_ids: list[str], access_token: str):
+  print("Order IDs: ", order_ids)
+  orders_details_request = LazopRequest('/orders/items/get','GET')
+  orders_details_request.add_api_param('order_ids', f"{order_ids}")
+  orders_details_response = lazop_client.execute(orders_details_request, access_token)
+  print("Orders details: ", orders_details_response.body)
+  return orders_details_response.body["data"]
+  
+def get_orders_with_items(access_token: str):
+    orders = get_all_orders(access_token)
+    print("Orders: ", orders[0]["order_id"], type(orders[0]["order_id"]))
+    order_ids = [int(o["order_id"]) for o in orders]
+    print(order_ids)
+
+    details = get_orders_details(order_ids, access_token)
+
+    merged_orders = []
+    for order in orders:
+        order_id = order["order_id"]
+        order_items = next(
+            (d["order_items"] for d in details if d["order_id"] == order_id),
+            []
+        )
+        merged_orders.append({
+            **order,
+            "items": order_items
+        })
+
+    return merged_orders
+  
 # def get_order_logistic_details(order_id: str, access_token: str):
 #   order_logistic_request = LazopRequest('/order/logistic/get')
 #   order_logistic_request.add_api_param('order_id', order_id)

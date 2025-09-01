@@ -2,7 +2,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 from fastapi import FastAPI, Request, Header, UploadFile, File, Body
 import settings
-from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images,migrate_image, get_all_categories, get_category_children, get_category_by_id, get_all_orders, trace_order_by_id, get_product_reviews, get_all_reverse_orders_info, get_order_logistic_details, payout_statement
+from client import lazop_client, get_access_token, get_all_products, get_auth_code, create_new_product, get_category_attributes, migrate_images, get_migrated_images,migrate_image, get_all_categories, get_category_children, get_category_by_id, get_all_orders, trace_order_by_id, get_product_reviews, get_all_reverse_orders_info, get_order_logistic_details, payout_statement, get_orders_with_items, get_all_products_reviews
 from fastapi.responses import RedirectResponse, JSONResponse
 from models import DarazProductCreate
 from typing import Optional, Any
@@ -43,6 +43,10 @@ async def access_token(code: str):
 async def all_products(access_token: Optional[str] = Header(None, alias="Authorization")):
     return get_all_products(access_token)
 
+@app.get('/get_all_product_reviews')
+async def all_products_reviews(access_token: Optional[str] = Header(None, alias="Authorization")):
+    return get_all_products_reviews(access_token)
+
 @app.get('/get_product_reviews')
 async def product_reviews(item_id: str, access_token: Optional[str] = Header(None, alias="Authorization")):
     return get_product_reviews(item_id, access_token)
@@ -82,6 +86,10 @@ async def new_product(product:dict = Body(...), access_token: Optional[str] = He
 @app.get('/get_all_orders')
 async def all_orders(access_token: Optional[str] = Header(None, alias="Authorization")):
     return get_all_orders(access_token)
+
+@app.get('/get_orders_with_items')
+async def orders_with_items(access_token: Optional[str] = Header(None, alias="Authorization")):
+    return get_orders_with_items(access_token)
 
 @app.get('/trace_order')
 async def trace_order(order_id: str, access_token: Optional[str] = Header(None, alias="Authorization")):
